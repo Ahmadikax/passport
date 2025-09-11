@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passport Data Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        .container {
+            padding-top: 50px;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: none;
+            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.95);
+        }
+        .card-header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            text-align: center;
+            padding: 20px;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner-border {
+            color: #667eea;
+        }
+        .result-info {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-passport me-3"></i>Passport Data Analyzer</h2>
+                        <p class="mb-0">Select a country to export visa data to Excel file</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-4">
+                            <label for="countrySelect" class="form-label h5">
+                                <i class="fas fa-globe me-2"></i>Select Country:
+                            </label>
+                            <select class="form-select" id="countrySelect">
+                                <option value="">-- Select Country --</option>
+                            </select>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button class="btn btn-primary btn-lg" id="analyzeBtn" disabled>
+                                <i class="fas fa-download me-2"></i>Analyze and Export to Excel
+                            </button>
+                        </div>
+                        
+                        <div class="loading" id="loading">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Analyzing...</span>
+                            </div>
+                            <p class="mt-2">Analyzing data...</p>
+                        </div>
+                        
+                        <div class="result-info" id="resultInfo">
+                            <h5><i class="fas fa-info-circle me-2"></i>Result Information:</h5>
+                            <div id="resultDetails"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Countries List
+        const countries = [
+            { code: 'afghanistan', name: 'Afghanistan' },
+            { code: 'albania', name: 'Albania' },
+            { code: 'algeria', name: 'Algeria' },
+            { code: 'andorra', name: 'Andorra' },
+            { code: 'angola', name: 'Angola' },
+            { code: 'argentina', name: 'Argentina' },
+            { code: 'armenia', name: 'Armenia' },
+            { code: 'australia', name: 'Australia' },
+            { code: 'austria', name: 'Austria' },
+            { code: 'azerbaijan', name: 'Azerbaijan' },
+            { code: 'bahamas', name: 'Bahamas' },
+            { code: 'bahrain', name: 'Bahrain' },
+            { code: 'bangladesh', name: 'Bangladesh' },
+            { code: 'barbados', name: 'Barbados' },
+            { code: 'belarus', name: 'Belarus' },
+            { code: 'belgium', name: 'Belgium' },
+            { code: 'belize', name: 'Belize' },
+            { code: 'benin', name: 'Benin' },
+            { code: 'bhutan', name: 'Bhutan' },
+            { code: 'bolivia', name: 'Bolivia' },
+            { code: 'botswana', name: 'Botswana' },
+            { code: 'brazil', name: 'Brazil' },
+            { code: 'brunei', name: 'Brunei' },
+            { code: 'bulgaria', name: 'Bulgaria' },
+            { code: 'burkina-faso', name: 'Burkina Faso' },
+            { code: 'burundi', name: 'Burundi' },
+            { code: 'cambodia', name: 'Cambodia' },
+            { code: 'cameroon', name: 'Cameroon' },
+            { code: 'canada', name: 'Canada' },
+            { code: 'cape-verde', name: 'Cape Verde' },
+            { code: 'chad', name: 'Chad' },
+            { code: 'chile', name: 'Chile' },
+            { code: 'china', name: 'China' },
+            { code: 'colombia', name: 'Colombia' },
+            { code: 'comoros', name: 'Comoros' },
+            { code: 'congo', name: 'Congo' },
+            { code: 'costa-rica', name: 'Costa Rica' },
+            { code: 'croatia', name: 'Croatia' },
+            { code: 'cuba', name: 'Cuba' },
+            { code: 'cyprus', name: 'Cyprus' },
+            { code: 'czech-republic', name: 'Czech Republic' },
+            { code: 'democratic-republic-of-the-congo', name: 'Democratic Republic of the Congo' },
+            { code: 'denmark', name: 'Denmark' },
+            { code: 'djibouti', name: 'Djibouti' },
+            { code: 'dominica', name: 'Dominica' },
+            { code: 'ecuador', name: 'Ecuador' },
+            { code: 'egypt', name: 'Egypt' },
+            { code: 'el-salvador', name: 'El Salvador' },
+            { code: 'eritrea', name: 'Eritrea' },
+            { code: 'estonia', name: 'Estonia' },
+            { code: 'eswatini', name: 'Eswatini' },
+            { code: 'ethiopia', name: 'Ethiopia' },
+            { code: 'fiji', name: 'Fiji' },
+            { code: 'finland', name: 'Finland' },
+            { code: 'france', name: 'France' },
+            { code: 'gabon', name: 'Gabon' },
+            { code: 'gambia', name: 'Gambia' },
+            { code: 'georgia', name: 'Georgia' },
+            { code: 'germany', name: 'Germany' },
+            { code: 'ghana', name: 'Ghana' },
+            { code: 'greece', name: 'Greece' },
+            { code: 'grenada', name: 'Grenada' },
+            { code: 'guatemala', name: 'Guatemala' },
+            { code: 'guinea', name: 'Guinea' },
+            { code: 'guinea-bissau', name: 'Guinea-Bissau' },
+            { code: 'guyana', name: 'Guyana' },
+            { code: 'haiti', name: 'Haiti' },
+            { code: 'honduras', name: 'Honduras' },
+            { code: 'hong-kong', name: 'Hong Kong' },
+            { code: 'hungary', name: 'Hungary' },
+            { code: 'iceland', name: 'Iceland' },
+            { code: 'india', name: 'India' },
+            { code: 'indonesia', name: 'Indonesia' },
+            { code: 'iran', name: 'Iran' },
+            { code: 'iraq', name: 'Iraq' },
+            { code: 'ireland', name: 'Ireland' },
+            { code: 'israel', name: 'Israel' },
+            { code: 'italy', name: 'Italy' },
+            { code: 'ivory-coast', name: 'Ivory Coast' },
+            { code: 'jamaica', name: 'Jamaica' },
+            { code: 'japan', name: 'Japan' },
+            { code: 'jordan', name: 'Jordan' },
+            { code: 'kazakhstan', name: 'Kazakhstan' },
+            { code: 'kenya', name: 'Kenya' },
+            { code: 'kiribati', name: 'Kiribati' },
+            { code: 'kosovo', name: 'Kosovo' },
+            { code: 'kuwait', name: 'Kuwait' },
+            { code: 'kyrgyzstan', name: 'Kyrgyzstan' },
+            { code: 'laos', name: 'Laos' },
+            { code: 'latvia', name: 'Latvia' },
+            { code: 'lebanon', name: 'Lebanon' },
+            { code: 'lesotho', name: 'Lesotho' },
+            { code: 'liberia', name: 'Liberia' },
+            { code: 'libya', name: 'Libya' },
+            { code: 'liechtenstein', name: 'Liechtenstein' },
+            { code: 'lithuania', name: 'Lithuania' },
+            { code: 'luxembourg', name: 'Luxembourg' },
+            { code: 'macao', name: 'Macao' },
+            { code: 'madagascar', name: 'Madagascar' },
+            { code: 'malawi', name: 'Malawi' },
+            { code: 'malaysia', name: 'Malaysia' },
+            { code: 'maldives', name: 'Maldives' },
+            { code: 'mali', name: 'Mali' },
+            { code: 'malta', name: 'Malta' },
+            { code: 'marshall-islands', name: 'Marshall Islands' },
+            { code: 'mauritania', name: 'Mauritania' },
+            { code: 'mauritius', name: 'Mauritius' },
+            { code: 'mexico', name: 'Mexico' },
+            { code: 'micronesia', name: 'Micronesia' },
+            { code: 'moldova', name: 'Moldova' },
+            { code: 'monaco', name: 'Monaco' },
+            { code: 'mongolia', name: 'Mongolia' },
+            { code: 'montenegro', name: 'Montenegro' },
+            { code: 'morocco', name: 'Morocco' },
+            { code: 'mozambique', name: 'Mozambique' },
+            { code: 'myanmar', name: 'Myanmar' },
+            { code: 'namibia', name: 'Namibia' },
+            { code: 'nauru', name: 'Nauru' },
+            { code: 'nepal', name: 'Nepal' },
+            { code: 'netherlands', name: 'Netherlands' },
+            { code: 'new-zealand', name: 'New Zealand' },
+            { code: 'nicaragua', name: 'Nicaragua' },
+            { code: 'niger', name: 'Niger' },
+            { code: 'nigeria', name: 'Nigeria' },
+            { code: 'north-korea', name: 'North Korea' },
+            { code: 'north-macedonia', name: 'North Macedonia' },
+            { code: 'norway', name: 'Norway' },
+            { code: 'oman', name: 'Oman' },
+            { code: 'pakistan', name: 'Pakistan' },
+            { code: 'palau', name: 'Palau' },
+            { code: 'palestine', name: 'Palestine' },
+            { code: 'panama', name: 'Panama' },
+            { code: 'paraguay', name: 'Paraguay' },
+            { code: 'peru', name: 'Peru' },
+            { code: 'philippines', name: 'Philippines' },
+            { code: 'poland', name: 'Poland' },
+            { code: 'portugal', name: 'Portugal' },
+            { code: 'qatar', name: 'Qatar' },
+            { code: 'romania', name: 'Romania' },
+            { code: 'russia', name: 'Russia' },
+            { code: 'rwanda', name: 'Rwanda' },
+            { code: 'saint-lucia', name: 'Saint Lucia' },
+            { code: 'samoa', name: 'Samoa' },
+            { code: 'san-marino', name: 'San Marino' },
+            { code: 'saudi-arabia', name: 'Saudi Arabia' },
+            { code: 'senegal', name: 'Senegal' },
+            { code: 'serbia', name: 'Serbia' },
+            { code: 'seychelles', name: 'Seychelles' },
+            { code: 'sierra-leone', name: 'Sierra Leone' },
+            { code: 'singapore', name: 'Singapore' },
+            { code: 'slovakia', name: 'Slovakia' },
+            { code: 'slovenia', name: 'Slovenia' },
+            { code: 'solomon-islands', name: 'Solomon Islands' },
+            { code: 'somalia', name: 'Somalia' },
+            { code: 'south-africa', name: 'South Africa' },
+            { code: 'south-korea', name: 'South Korea' },
+            { code: 'south-sudan', name: 'South Sudan' },
+            { code: 'spain', name: 'Spain' },
+            { code: 'sri-lanka', name: 'Sri Lanka' },
+            { code: 'sudan', name: 'Sudan' },
+            { code: 'suriname', name: 'Suriname' },
+            { code: 'sweden', name: 'Sweden' },
+            { code: 'switzerland', name: 'Switzerland' },
+            { code: 'syria', name: 'Syria' },
+            { code: 'taiwan', name: 'Taiwan' },
+            { code: 'tajikistan', name: 'Tajikistan' },
+            { code: 'tanzania', name: 'Tanzania' },
+            { code: 'thailand', name: 'Thailand' },
+            { code: 'timor-leste', name: 'Timor-Leste' },
+            { code: 'togo', name: 'Togo' },
+            { code: 'tonga', name: 'Tonga' },
+            { code: 'tunisia', name: 'Tunisia' },
+            { code: 'turkey', name: 'Turkey' },
+            { code: 'turkmenistan', name: 'Turkmenistan' },
+            { code: 'tuvalu', name: 'Tuvalu' },
+            { code: 'uganda', name: 'Uganda' },
+            { code: 'ukraine', name: 'Ukraine' },
+            { code: 'united-kingdom', name: 'United Kingdom' },
+            { code: 'united-states', name: 'United States' },
+            { code: 'uruguay', name: 'Uruguay' },
+            { code: 'uzbekistan', name: 'Uzbekistan' },
+            { code: 'vanuatu', name: 'Vanuatu' },
+            { code: 'vatican-city', name: 'Vatican City' },
+            { code: 'venezuela', name: 'Venezuela' },
+            { code: 'vietnam', name: 'Vietnam' },
+            { code: 'yemen', name: 'Yemen' },
+            { code: 'zambia', name: 'Zambia' },
+            { code: 'zimbabwe', name: 'Zimbabwe' }
+        ];
+
+        // Load Countries List
+        function loadCountries() {
+            console.log('Loading countries list...');
+            const countrySelect = document.getElementById('countrySelect');
+            
+            if (!countrySelect) {
+                console.error('Country select element not found');
+                return;
+            }
+            
+            console.log('Available countries count:', countries.length);
+            
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select Country...';
+            countrySelect.appendChild(defaultOption);
+            
+            // Add countries
+            countries.forEach((country, index) => {
+                const option = document.createElement('option');
+                option.value = country.code;
+                option.textContent = country.name;
+                countrySelect.appendChild(option);
+                
+                if (index < 5) {
+                    console.log('Adding country:', country.name);
+                }
+            });
+            
+            console.log('All countries loaded successfully');
+            
+            // Add event listener
+            countrySelect.addEventListener('change', function() {
+                console.log('Country selected:', this.value);
+                const analyzeBtn = document.getElementById('analyzeBtn');
+                if (analyzeBtn) {
+                    analyzeBtn.disabled = this.value === '';
+                }
+            });
+        }
+
+        // Analyze Passport Data
+        async function analyzePassportData() {
+            const countrySelect = document.getElementById('countrySelect');
+            const selectedCountry = countrySelect.value;
+            const selectedCountryName = countrySelect.options[countrySelect.selectedIndex].text;
+            
+            if (!selectedCountry) {
+                alert('Please select a country first');
+                return;
+            }
+            
+            const loading = document.getElementById('loading');
+            const resultInfo = document.getElementById('resultInfo');
+            
+            loading.style.display = 'block';
+            resultInfo.style.display = 'none';
+            
+            try {
+                const visaData = await extractVisaData(selectedCountry, selectedCountryName);
+                createExcelFile(visaData, selectedCountry);
+                showResults(visaData);
+            } catch (error) {
+                alert('Error occurred while analyzing data: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Extract Visa Data
+        async function extractVisaData(countryCode, countryName) {
+            const fileName = `passport_${countryCode}_.html`;
+            
+            try {
+                const response = await fetch(fileName);
+                if (!response.ok) {
+                    throw new Error(`Data file not found for selected country`);
+                }
+                
+                const htmlContent = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlContent, 'text/html');
+                
+                const visaData = [];
+                const rows = doc.querySelectorAll('tr.show-tr');
+                
+                rows.forEach(row => {
+                    const countryCell = row.querySelector('td:first-child');
+                    const visaCell = row.querySelector('td:last-child');
+                    
+                    if (countryCell && visaCell) {
+                        const countryLink = countryCell.querySelector('a');
+                        const countryName = countryLink ? countryLink.textContent.trim() : '';
+                        
+                        const visaRulesElements = visaCell.querySelectorAll('.vrules');
+                        const visaDaysElement = visaCell.querySelector('.vdays');
+                        
+                        let visaTypes = [];
+                        let duration = visaDaysElement ? visaDaysElement.textContent.trim() : '';
+                        
+                        visaRulesElements.forEach(element => {
+                            const text = element.textContent.trim();
+                            if (text.includes('·')) {
+                                visaTypes.push(...text.split('·').map(v => v.trim()));
+                            } else {
+                                visaTypes.push(text);
+                            }
+                        });
+                        
+                        visaTypes = [...new Set(visaTypes)].filter(type => type !== '');
+                        
+                        let category = 'Not Specified';
+                        if (row.classList.contains('vf')) {
+                            category = 'Visa Free';
+                        } else if (row.classList.contains('voa')) {
+                            category = 'Visa on Arrival';
+                        } else if (row.classList.contains('eta')) {
+                            category = 'Electronic Travel Authorization';
+                        } else if (row.classList.contains('vr')) {
+                            category = 'Visa Required';
+                        }
+                        
+                        const hasEvisa = visaCell.querySelector('.ebutton') !== null;
+                        const evisaLink = hasEvisa ? visaCell.querySelector('.ebutton a')?.href || '' : '';
+                        
+                        if (countryName) {
+                            visaData.push({
+                                country: countryName,
+                                visaTypes: visaTypes,
+                                duration: duration,
+                                category: category,
+                                hasEvisa: hasEvisa,
+                                evisaLink: evisaLink
+                            });
+                        }
+                    }
+                });
+                
+                return {
+                    sourceCountry: countryName,
+                    data: visaData,
+                    totalCountries: visaData.length
+                };
+            } catch (error) {
+                throw new Error('Failed to load country data: ' + error.message);
+            }
+        }
+
+        // Create Excel File
+        function createExcelFile(visaData, countryCode) {
+            const workbook = XLSX.utils.book_new();
+            
+            const worksheetData = [
+                ['Passport Country', 'Destination Country', 'Visa required', 'Visa Type', 'Duration (Days)']
+            ];
+            
+            visaData.data.forEach(item => {
+                // Determine if visa is required (1 for any type of visa requirement, 0 for visa free)
+                let visaRequired = 0;
+                if (item.category === 'Visa Required' || 
+                    item.category === 'Visa on Arrival' || 
+                    item.category === 'Electronic Travel Authorization') {
+                    visaRequired = 1;
+                }
+                
+                // Combine visa types with / separator
+                let combinedVisaTypes = '';
+                if (item.visaTypes && item.visaTypes.length > 0) {
+                    combinedVisaTypes = item.visaTypes.join(' / ');
+                } else {
+                    // If no specific visa types, use the category
+                    if (item.category === 'Visa Free') {
+                        combinedVisaTypes = 'Visa Free';
+                    } else if (item.category === 'Visa on Arrival') {
+                        combinedVisaTypes = 'Visa on Arrival';
+                    } else if (item.category === 'Electronic Travel Authorization') {
+                        combinedVisaTypes = 'eVisa';
+                    } else if (item.category === 'Visa Required') {
+                        combinedVisaTypes = 'Visa Required';
+                    }
+                }
+                
+                const row = [
+                    visaData.sourceCountry,
+                    item.country,
+                    visaRequired,
+                    combinedVisaTypes,
+                    item.duration || 'Not Specified'
+                ];
+                worksheetData.push(row);
+            });
+            
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Visa Data');
+            
+            // Statistics
+            const stats = {
+                visaFree: 0,
+                visaOnArrival: 0,
+                eVisa: 0,
+                visaRequired: 0
+            };
+            
+            visaData.data.forEach(item => {
+                switch(item.category) {
+                    case 'Visa Free': stats.visaFree++; break;
+                    case 'Visa on Arrival': stats.visaOnArrival++; break;
+                    case 'Electronic Travel Authorization': stats.eVisa++; break;
+                    case 'Visa Required': stats.visaRequired++; break;
+                }
+            });
+            
+            const statsData = [
+                ['Visa Type', 'Count', 'Percentage'],
+                ['Visa Free', stats.visaFree, ((stats.visaFree / visaData.totalCountries) * 100).toFixed(1) + '%'],
+                ['Visa on Arrival', stats.visaOnArrival, ((stats.visaOnArrival / visaData.totalCountries) * 100).toFixed(1) + '%'],
+                ['Electronic Travel Authorization', stats.eVisa, ((stats.eVisa / visaData.totalCountries) * 100).toFixed(1) + '%'],
+                ['Visa Required', stats.visaRequired, ((stats.visaRequired / visaData.totalCountries) * 100).toFixed(1) + '%'],
+                ['', '', ''],
+                ['Total Countries', visaData.totalCountries, '100%']
+            ];
+            
+            const statsWorksheet = XLSX.utils.aoa_to_sheet(statsData);
+            XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Statistics');
+            
+            const fileName = `passport_data_${countryCode}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+        }
+
+        // Show Results
+        function showResults(visaData) {
+            const resultInfo = document.getElementById('resultInfo');
+            const resultDetails = document.getElementById('resultDetails');
+            
+            const stats = {
+                visaFree: 0,
+                visaOnArrival: 0,
+                eVisa: 0,
+                visaRequired: 0
+            };
+            
+            visaData.data.forEach(item => {
+                switch(item.category) {
+                    case 'Visa Free': stats.visaFree++; break;
+                    case 'Visa on Arrival': stats.visaOnArrival++; break;
+                    case 'Electronic Travel Authorization': stats.eVisa++; break;
+                    case 'Visa Required': stats.visaRequired++; break;
+                }
+            });
+            
+            resultDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-flag me-2"></i>Source Country:</h6>
+                        <p class="mb-2">${visaData.sourceCountry}</p>
+                        
+                        <h6><i class="fas fa-globe me-2"></i>Total Countries:</h6>
+                        <p class="mb-2">${visaData.totalCountries} countries</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-chart-pie me-2"></i>Visa Statistics:</h6>
+                        <div class="mb-1">🟢 ${stats.visaFree} Visa Free</div>
+                        <div class="mb-1">🟡 ${stats.visaOnArrival} On Arrival</div>
+                        <div class="mb-1">🔵 ${stats.eVisa} Electronic</div>
+                        <div class="mb-1">🔴 ${stats.visaRequired} Required</div>
+                    </div>
+                </div>
+                <div class="alert alert-success mt-3 mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Data exported successfully to Excel file!
+                </div>
+            `;
+            
+            resultInfo.style.display = 'block';
+        }
+
+        // Bind Events on Page Load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page ready, starting to load countries...');
+            loadCountries();
+            
+            // Bind Analyze Button
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (analyzeBtn) {
+                analyzeBtn.addEventListener('click', analyzePassportData);
+            }
+        });
+    </script>
+</body>
+</html>
